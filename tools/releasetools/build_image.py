@@ -160,7 +160,7 @@ def MakeVerityEnabledImage(out_file, prop_dict):
   # get properties
   image_size = prop_dict["partition_size"]
   block_dev = prop_dict["verity_block_device"]
-  signer_key = prop_dict["verity_key"]
+  signer_key = prop_dict["verity_key"] + ".pk8"
   signer_path = prop_dict["verity_signer_cmd"]
 
   # make a tempdir
@@ -237,19 +237,19 @@ def BuildImage(in_dir, prop_dict, out_file,
     if "extfs_sparse_flag" in prop_dict:
       build_command.append(prop_dict["extfs_sparse_flag"])
       #run_fsck = True
-    if "is_userdataextra" in prop_dict:
-      build_command.extend([in_dir, out_file, fs_type,
-                           "data"])
-    else:
-      build_command.extend([in_dir, out_file, fs_type,
-                            prop_dict["mount_point"]])
+    build_command.extend([in_dir, out_file, fs_type,
+                          prop_dict["mount_point"]])
     build_command.append(prop_dict["partition_size"])
+    if "journal_size" in prop_dict:
+      build_command.extend(["-j", prop_dict["journal_size"]])
     if "timestamp" in prop_dict:
       build_command.extend(["-T", str(prop_dict["timestamp"])])
     if fs_config is not None:
       build_command.extend(["-C", fs_config])
     if block_list is not None:
       build_command.extend(["-B", block_list])
+    if "transparent_compression_method" in prop_dict:
+      build_command.extend(["-M", prop_dict["transparent_compression_method"]])
     if fc_config is not None:
       build_command.append(fc_config)
     elif "selinux_fc" in prop_dict:
@@ -314,7 +314,8 @@ def ImagePropFromGlobalDict(glob_dict, mount_point):
       "skip_fsck",
       "verity",
       "verity_key",
-      "verity_signer_cmd"
+      "verity_signer_cmd",
+      "transparent_compression_method"
       )
   for p in common_props:
     copy_prop(p, p)
@@ -323,27 +324,25 @@ def ImagePropFromGlobalDict(glob_dict, mount_point):
   if mount_point == "system":
     copy_prop("fs_type", "fs_type")
     copy_prop("system_size", "partition_size")
+    copy_prop("system_journal_size", "journal_size")
     copy_prop("system_verity_block_device", "verity_block_device")
   elif mount_point == "data":
     # Copy the generic fs type first, override with specific one if available.
     copy_prop("fs_type", "fs_type")
     copy_prop("userdata_fs_type", "fs_type")
     copy_prop("userdata_size", "partition_size")
-  elif mount_point == "data_extra":
-    copy_prop("fs_type", "fs_type")
-    copy_prop("userdataextra_size", "partition_size")
-    copy_prop("userdataextra_name", "partition_name")
-    d["is_userdataextra"] = True
   elif mount_point == "cache":
     copy_prop("cache_fs_type", "fs_type")
     copy_prop("cache_size", "partition_size")
   elif mount_point == "vendor":
     copy_prop("vendor_fs_type", "fs_type")
     copy_prop("vendor_size", "partition_size")
+    copy_prop("vendor_journal_size", "journal_size")
     copy_prop("vendor_verity_block_device", "verity_block_device")
   elif mount_point == "oem":
     copy_prop("fs_type", "fs_type")
     copy_prop("oem_size", "partition_size")
+    copy_prop("oem_journal_size", "journal_size")
 
   return d
 
