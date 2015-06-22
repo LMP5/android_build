@@ -1021,7 +1021,14 @@ INTERNAL_SYSTEMIMAGE_FILES := $(filter $(TARGET_OUT)/%, \
     $(PDK_FUSION_SYSIMG_FILES) \
     $(RECOVERY_RESOURCE_ZIP))
 
-FULL_SYSTEMIMAGE_DEPS := $(INTERNAL_SYSTEMIMAGE_FILES) $(INTERNAL_USERIMAGES_DEPS)
+systemimage-crusher: $(INTERNAL_SYSTEMIMAGE_FILES)
+	@echo -e "Optimizing PNGs to Shrink ROM Size!"
+	$(hide) APKCERTS=$(APKCERTS_FILE) ./build/tools/releasetools/pngcrusher
+
+.PHONY: systemimage-crusher
+
+FULL_SYSTEMIMAGE_DEPS := $(INTERNAL_SYSTEMIMAGE_FILES) $(INTERNAL_USERIMAGES_DEPS) systemimage-crusher
+
 # -----------------------------------------------------------------
 # installed file list
 # Depending on anything that $(BUILT_SYSTEMIMAGE) depends on.
@@ -1699,6 +1706,15 @@ bacon: otapackage
 	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(CM_TARGET_PACKAGE)
 	$(hide) $(MD5SUM) $(CM_TARGET_PACKAGE) > $(CM_TARGET_PACKAGE).md5sum
 	@echo -e ${CL_CYN}"Package Complete: $(CM_TARGET_PACKAGE)"${CL_RST}
+	@echo -e ${CL_CYN} ""${CL_RST}
+	@echo -e ${CL_CYN} "                ____________  "${CL_RST}
+	@echo -e ${CL_CYN} "___  _______   /_   \_____  \ "${CL_RST}
+	@echo -e ${CL_CYN} "\  \/ /     \   |   |/  ____/ "${CL_RST}
+	@echo -e ${CL_CYN} " \   /  Y Y  \  |   /       \ "${CL_RST}
+	@echo -e ${CL_CYN} "  \_/|__|_|  /  |___\_______ /"${CL_RST}
+	@echo -e ${CL_CYN} "           \/               \/"${CL_RST}
+	@echo -e ${CL_CYN} ""${CL_RST}
+	@echo -e ${CL_CYN} ""${CL_RST}
 
 endif    # recovery_fstab is defined
 endif    # TARGET_NO_KERNEL != true
