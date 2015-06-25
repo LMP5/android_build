@@ -33,13 +33,6 @@ DEFAULT_CCACHE_DIR=~/.ccache
 PRCHR=n
 QCLEAN=n
 CLEAN=n
-OTA=n
-FTP=n
-FTPHOST=uploads.androidfilehost.com
-FTPUSER=
-FTPPASS=
-FTPFULL=full/UNOFFICIAL
-FTPOTA=OTA/UNOFFICIAL
 JB=n
 
 # Find processor cores
@@ -376,79 +369,6 @@ if ADVNC=$(askyn "Would You Like to Enable Advanced Building?" $ADVNC); then
     JBN=$(($DEF_CORE + 1))
   fi
 
-# Make OTA's for chosen devices?
-  if OTA=$(askyn "Do you want to make an ota package for chosen devices?" $OTA); then
-  declare -i i=${#OTABO[*]}
-    for DEVICE in ${DEVICES[@]}; do
-      OTABDIR=$SAUCE/VM12/FULL/UNOFFICIAL/$DEVICE
-        if OTABUILD=$(askyn "Do you want to make an ota package for "$DEVICE"?" $OTABUILD); then
-          if [ ! -f "$OTABDIR"/*".zip" ]; then
-            err "YOU ARE NOT SET UP FOR "$DEVICE" OTA BUILDS"
-            err "SETTING UP BUILD FOLDER"
-            mkdir -p "$OTABDIR"
-              while :; do
-                USRSTR=$(ask "Enter the path to your "$DEVICE" rom storage directory:" "$USRSTR")
-                OLDIE=$(ls -t "$USRSTR"/*"$DEVICE"*"UNOFFICIAL.zip" | head -1)
-                  until [ -e "$OLDIE" ]; do
-                    err ""$USRSTR" DOES NOT HAVE ANY ROMS FOR "$DEVICE" INSIDE!!"
-                    USRSTR=$(ask "Enter the path to your "$DEVICE" rom storage directory:" "$USRSTR")
-                    OLDIE=$(ls -t "$USRSTR"/*"$DEVICE"*"UNOFFICIAL.zip" | head -1)
-                  done
-                cp "$OLDIE" "$OTABDIR"
-                OTABO[$((i++))]=$DEVICE
-                echo "Added to OTA build list: "${OTABO[@]}""
-                echo ""OTABO[$((i++))]"="$DEVICE"   # Build OTA for "$DEVICE"">>""$SAUCE"/out/buildrules/build.conf"
-                break
-              done
-          elif [ -f "$OTABDIR"/*".zip" ];then
-            OTABO[$((i++))]=$DEVICE
-            echo "Added to OTA build list: "${OTABO[@]}""
-            echo ""OTABO[$((i++))]"="$DEVICE"   # Build OTA for "$DEVICE"">>""$SAUCE"/out/buildrules/build.conf"
-          fi
-        else
-          err "NOT BUILDING OTA FOR "$DEVICE"..."
-        fi
-    done
-  echo "Final OTA build list: "${OTABO[*]}""
-  echo ""
-  fi
-
-# Upload to AFH.com?
-  while :; do
-    if FTP=$(askyn "Would you like to enable FTP uploading" "$FTP"); then
-      FTPUSER=$(ask "What is your  androidfilehost.com username:" "$FTPUSER")
-      FTPPASS=$(ask -s "What is your  androidfilehost.com password:" "$FTPPASS")
-      info "Checking access to "$FTPHOST""
-        until curl -# ftp://"$FTPUSER":"$FTPPASS"@"$FTPHOST"/ >/dev/null; do
-          err "User Name and or Password not correct..."
-          FTPUSER=$(ask "What is your  androidfilehost.com username:" "$FTPUSER")
-          FTPPASS=$(ask -s "What is your  androidfilehost.com password:")
-          info "Checking access to "$FTPHOST""
-        done
-      info "Success!"
-      FTPUSERPASS=""$FTPUSER":"$FTPPASS"@"
-      break
-    else
-      break
-    fi
-  done
-  
-# Choose devices to upload to  androidfilehost.com
-  if [ "$FTP" = y ]; then
-    declare -i i=${#FTPUL[*]}
-    for DEVICE in ${DEVICES[@]}; do
-      if FTPUP=$(askyn "Would you like to upload "$DEVICE"?" $FTPUP); then
-        FTPUL[$((i++))]=$DEVICE
-        echo ""FTPUL[$((i++))]"="$DEVICE"   # Upload "$DEVICE" to lmp5.1">>""$SAUCE"/out/buildrules/build.conf"
-        echo "Added to FTP upload list: "${FTPUL[@]}""
-      else
-        err "NOT UPLOADING "$DEVICE"..."
-      fi
-    done
-    echo "Final FTP upload list: "${FTPUL[@]}""
-    echo ""
-  fi
-
 # Skip the advanced stuff and just build
 else
   echo ""
@@ -478,7 +398,7 @@ if [ "$USECONF" = n ]; then
   echo "JBN="$JBN"   # Number of threads to build with">>""$SAUCE"/out/buildrules/build.conf"
   echo "OTA="$OTA"   # Build OTA updates after build?">>""$SAUCE"/out/buildrules/build.conf"
   echo "FTP="$FTP"   # Upload finished pruduckt to vm12?">>""$SAUCE"/out/buildrules/build.conf"
-  echo "FTPUSER="$FTPUSER"   # AFH username">>""$SAUCE"/out/buildrules/build.conf"
+  echo "FTPUSER="$FTPUSER"   # ftp username">>""$SAUCE"/out/buildrules/build.conf"
 fi
 
 # Final build settings
@@ -674,19 +594,19 @@ done
 if [ "$OTA" = y ]; then
   for OTAO in ${OTABO[@]}; do
     ROMFOLDER=$(get_build_var OUT_DIR)/target/product/"$OTAO"
-    ROM=$(ls -t "$ROMFOLDER"/*"$OTAO"*"UNOFFICIAL.zip" | head -1)
+    ROM=$(ls -t "$ROMFOLDER"/*"$OTAO"*"1.0.0.zip" | head -1)
     ROMMD="$ROM".md5sum
-    OTABDIR=$SAUCE/vm12/FULL/UNOFFICIAL/$OTAO
-    OTAFOLDER="$SAUCE"/vm12/OTA/UNOFFICIAL/"$OTAO"
+    OTABDIR=$SAUCE/vm12-1/FULL/1.0.0/$OTAO
+    OTAFOLDER="$SAUCE"/vm12-1/OTA/1.0.0/"$OTAO"
       echo ""
       info "Copying "$OTAO" ROM to OTA build dir..."
       cp "$ROM" "$OTABDIR"
 
       info "Creating "$OTAO" OTA.zip..."
-      export vm12_OTA_INPUT="$SAUCE"/vm12/FULL
-      export vm12_OTA_EXTRA="$SAUCE"/vm12/OTA
-      ota_all UNOFFICIAL "$OTAO"
-      OTAN=$(ls -t "$OTAFOLDER"/*"$OTAO"*"UNOFFICIAL"*".zip" | head -1)
+      export vm12-1_OTA_INPUT="$SAUCE"/1.0.0/FULL
+      export vm12-1_OTA_EXTRA="$SAUCE"/1.0.0/OTA
+      ota_all 1.0.0"$OTAO"
+      OTAN=$(ls -t "$OTAFOLDER"/*"$OTAO"*"1.0.0"*".zip" | head -1)
       OTAMD=$(dirname "$OTAN")/md5/$(basename "$OTAN").md5sum
       TEMP=$OTAFOLDER/temp
       TEMPMD=$OTAFOLDER/temp/md5
@@ -696,7 +616,7 @@ if [ "$OTA" = y ]; then
           cp "$OTAMD" "$TEMPMD"
       fi
       info "Cleaning up..."
-      OLDROMS=$(ls -tr "$OTABDIR"/*"$OTAO"*"UNOFFICIAL.zip" | head -n 1)
+      OLDROMS=$(ls -tr "$OTABDIR"/*"$OTAO"*"1.0.0.zip" | head -n 1)
       if [[ "$OLDROMS" ]]; then
         rm "$OLDROMS"
       fi
@@ -707,16 +627,16 @@ fi
 if [ "$FTP" = y ]; then
   for FTPD in ${FTPUL[@]}; do
     ROMFOLDER=$(get_build_var OUT_DIR)/target/product/"$FTPD"
-    ROM=$(ls -t "$ROMFOLDER"/*"$FTPD"*"UNOFFICIAL.zip" | head -1)
+    ROM=$(ls -t "$ROMFOLDER"/"[TN]-LMP5.1.1-1.0.0-"*".zip" | head -1)
     ROMMD="$ROM".md5sum
-    OTAFOLDER="$SAUCE"/vm12/OTA/UNOFFICIAL/"$FTPD"
+    OTAFOLDER="$SAUCE"/vm12-1/OTA/1.0.0/"$FTPD"
     TEMP=$OTAFOLDER/temp
     echo ""
     info "Uploading "$FTPD"..."
       curl -v -T "$ROM" ftp://"$FTPUSERPASS""$FTPHOST"/"$FTPFULL"/"$FTPD"/
       curl -v -T "$ROMMD" ftp://"$FTPUSERPASS""$FTPHOST"/"$FTPFULL"/"$FTPD"/md5/
       if [ -d "$TEMP" ]; then
-        OTAN=$(ls -t "$TEMP"/*"$FTPD"*"UNOFFICIAL"*".zip" | head -1)
+        OTAN=$(ls -t "$TEMP"/*"$FTPD"*"1.0.0"*".zip" | head -1)
         OTAMD=$(dirname "$TEMP")/md5/$(basename "$OTAN").md5sum
           curl -v -T "$OTAN" ftp://"$FTPUSERPASS""$FTPHOST"/"$FTPOTA"/"$FTPD"/
           curl -v -T "$OTAMD" ftp://"$FTPUSERPASS""$FTPHOST"/"$FTPOTA"/"$FTPD"/md5/
@@ -728,7 +648,7 @@ fi
 if [ "$MOVE" = y ]; then
   for DEVICE in ${DEVICES[@]}; do
     ROMFOLDER=$(get_build_var OUT_DIR)/target/product/"$DEVICE"
-    ROM=$(ls -t "$ROMFOLDER"/*"$DEVICE"*"UNOFFICIAL.zip" | head -1)
+    ROM=$(ls -t "$ROMFOLDER"/"[TN]-LMP5.1.1"*"1.0.0-"*".zip" | head -1)
     ROMMD="$ROM".md5sum
       info "Moving "$DEVICE" ROM to "$STORAGE""
       mkdir -p "$STORAGE"/"$DEVICE"/md5 &&
@@ -737,8 +657,8 @@ if [ "$MOVE" = y ]; then
   done
   for OTAO in ${OTABO[@]}; do
     info "Moving "$OTAO" OTA to "$STORAGE""
-      OTAFOLDER="$SAUCE"/vm12/OTA/UNOFFICIAL/"$OTAO"
-      OTAN=$(ls -t "$OTAFOLDER"/*"$OTAO"*"UNOFFICIAL"*".zip" | head -1)
+      OTAFOLDER="$SAUCE"/vm12-1/OTA/1.0.0/"$OTAO"
+      OTAN=$(ls -t "$OTAFOLDER"/*"$OTAO"*"1.0.0"*".zip" | head -1)
       OTAMD=$(dirname "$OTAN")/md5/$(basename "$OTAN").md5sum
     if [ -e "$OTAN" ]; then
       mkdir -p "$STORAGE"/"$OTAO"/OTA/md5
@@ -753,7 +673,7 @@ fi
 # Clean up
 if [[ "$FTP" = y && "$OTA" = y ]]; then
   for OTAO in ${OTABO[@]}; do
-    OTAFOLDER="$SAUCE"/vm12/OTA/UNOFFICIAL/"$OTAO"
+    OTAFOLDER="$SAUCE"/vm12-1/OTA/1.0.0/"$OTAO"
     TEMP=$OTAFOLDER/temp
     TEMPMD=$OTAFOLDER/temp/md5
       if [ -d "$TEMP" ]; then
