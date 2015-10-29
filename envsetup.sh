@@ -27,6 +27,10 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - mka:      Builds using SCHED_BATCH on all processors
 - mkap:     Builds the module(s) using mka and pushes them to the device.
 - cmka:     Cleans and builds using mka.
+<<<<<<< HEAD
+=======
+- repolastsync: Prints date and time of last repo sync.
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
 - reposync: Parallel repo sync using ionice and SCHED_BATCH
 - repopick: Utility to fetch changes from Gerrit.
 - installboot: Installs a boot.img to the connected device.
@@ -35,12 +39,9 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 Look at the source to view more functions. The complete list is:
 EOF
     T=$(gettop)
-    local A
-    A=""
     for i in `cat $T/build/envsetup.sh | sed -n "/^[ \t]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
-      A="$A $i"
-    done
-    echo $A
+      echo "$i"
+    done | column
 }
 
 # Get the value of a build variable as an absolute path.
@@ -229,6 +230,10 @@ function setpaths()
 
     unset ANDROID_HOST_OUT
     export ANDROID_HOST_OUT=$(get_abs_build_var HOST_OUT)
+
+    if [ -n "$ANDROID_CCACHE_DIR" ]; then
+        export CCACHE_DIR=$ANDROID_CCACHE_DIR
+    fi
 
     # needed for building linux on MacOS
     # TODO: fix the path
@@ -569,6 +574,7 @@ alias bib=breakfast
 function lunch()
 {
     local answer
+    LUNCH_MENU_CHOICES=($(for l in ${LUNCH_MENU_CHOICES[@]}; do echo "$l"; done | sort))
 
     if [ "$1" ] ; then
         answer=$1
@@ -646,6 +652,7 @@ function lunch()
 
     echo
 
+<<<<<<< HEAD
     if [[ $USE_PREBUILT_CHROMIUM -eq 1 ]]; then
         chromium_prebuilt
     else
@@ -653,6 +660,8 @@ function lunch()
         export PRODUCT_PREBUILT_WEBVIEWCHROMIUM=""
     fi
 
+=======
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
     fixup_common_out_dir
 
     set_stuff_for_environment
@@ -742,7 +751,11 @@ function eat()
             done
             echo "Device Found.."
         fi
+<<<<<<< HEAD
     if (adb shell cat /system/build.prop | grep -q "ro.cm.device=$CM_BUILD");
+=======
+    if (adb shell getprop ro.cm.device | grep -q "$CM_BUILD");
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
     then
         # if adbd isn't root we can't write to /cache/recovery/
         adb root
@@ -914,7 +927,12 @@ function mmm()
                 case $DIR in
                   showcommands | snod | dist | incrementaljavac) ARGS="$ARGS $DIR";;
                   GET-INSTALL-PATH) GET_INSTALL_PATH=$DIR;;
-                  *) echo "No Android.mk in $DIR."; return 1;;
+                  *) if [ -d $DIR ]; then
+                         echo "No Android.mk in $DIR.";
+                     else
+                         echo "Couldn't locate the directory $DIR";
+                     fi
+                     return 1;;
                 esac
             fi
         done
@@ -1981,7 +1999,11 @@ function installboot()
     sleep 1
     adb wait-for-online shell mount /system 2>&1 > /dev/null
     adb wait-for-online remount
+<<<<<<< HEAD
     if (adb shell cat /system/build.prop | grep -q "ro.cm.device=$CM_BUILD");
+=======
+    if (adb shell getprop ro.cm.device | grep -q "$CM_BUILD");
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
     then
         adb push $OUT/boot.img /cache/
         for i in $OUT/system/lib/modules/*;
@@ -2026,7 +2048,11 @@ function installrecovery()
     sleep 1
     adb wait-for-online shell mount /system 2>&1 >> /dev/null
     adb wait-for-online remount
+<<<<<<< HEAD
     if (adb shell cat /system/build.prop | grep -q "ro.cm.device=$CM_BUILD");
+=======
+    if (adb shell getprop ro.cm.device | grep -q "$CM_BUILD");
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
     then
         adb push $OUT/recovery.img /cache/
         adb shell dd if=/cache/recovery.img of=$PARTITION
@@ -2333,6 +2359,7 @@ function cmrebase() {
 }
 
 function mka() {
+<<<<<<< HEAD
     case `uname -s` in
         Darwin)
             make -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
@@ -2341,6 +2368,22 @@ function mka() {
             schedtool -B -n 1 -e ionice -n 1 make -j$(cat /proc/cpuinfo | grep "^processor" | wc -l) "$@"
             ;;
     esac
+=======
+    local T=$(gettop)
+    if [ "$T" ]; then
+        case `uname -s` in
+            Darwin)
+                make -C $T -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
+                ;;
+            *)
+                mk_timer schedtool -B -n 1 -e ionice -n 1 make -C $T -j$(cat /proc/cpuinfo | grep "^processor" | wc -l) "$@"
+                ;;
+        esac
+
+    else
+        echo "Couldn't locate the top of the tree.  Try setting TOP."
+    fi
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
 }
 
 function cmka() {
@@ -2363,6 +2406,16 @@ function cmka() {
     fi
 }
 
+<<<<<<< HEAD
+=======
+function repolastsync() {
+    RLSPATH="$ANDROID_BUILD_TOP/.repo/.repo_fetchtimes.json"
+    RLSLOCAL=$(date -d "$(stat -c %z $RLSPATH)" +"%e %b %Y, %T %Z")
+    RLSUTC=$(date -d "$(stat -c %z $RLSPATH)" -u +"%e %b %Y, %T %Z")
+    echo "Last repo sync: $RLSLOCAL / $RLSUTC"
+}
+
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
 function reposync() {
     case `uname -s` in
         Darwin)
@@ -2399,7 +2452,11 @@ function dopush()
         echo "Device Found."
     fi
 
+<<<<<<< HEAD
     if (adb shell cat /system/build.prop | grep -q "ro.cm.device=$CM_BUILD");
+=======
+    if (adb shell getprop ro.cm.device | grep -q "$CM_BUILD") || [ "$FORCE_PUSH" == "true" ];
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
     then
     # retrieve IP and PORT info if we're using a TCP connection
     TCPIPPORT=$(adb devices | egrep '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+[^0-9]+' \
@@ -2595,10 +2652,10 @@ function get_make_command()
   echo command make
 }
 
-function make()
+function mk_timer()
 {
     local start_time=$(date +"%s")
-    $(get_make_command) "$@"
+    $@
     local ret=$?
     local end_time=$(date +"%s")
     local tdiff=$(($end_time-$start_time))
@@ -2623,6 +2680,7 @@ function make()
     return $ret
 }
 
+<<<<<<< HEAD
 function chromium_prebuilt() {
     T=$(gettop)
     hash1=$T/prebuilts/chromium/$MK_BUILD/hash_chromium.txt
@@ -2637,6 +2695,14 @@ function chromium_prebuilt() {
         echo "** Prebuilt Chromium out-of-date/not found; Will build from source **"
     fi
 }
+=======
+function make()
+{
+    mk_timer $(get_make_command) "$@"
+}
+
+
+>>>>>>> 7fc9ab74b3528db4ff41e49cacf2ed0a157389d9
 
 if [ "x$SHELL" != "x/bin/bash" ]; then
     case `ps -o command -p $$` in
