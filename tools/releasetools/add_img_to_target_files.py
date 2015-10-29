@@ -105,6 +105,29 @@ def BuildVendor(input_dir, info_dict, block_list=None):
   file containing it."""
   return CreateImage(input_dir, info_dict, "vendor", block_list=block_list)
 
+def AddOem(output_zip, prefix="IMAGES/"):
+  """Turn the contents of OEM into a oem image and store in it
+  output_zip."""
+
+  prebuilt_path = os.path.join(OPTIONS.input_tmp, prefix, "oem.img")
+  if os.path.exists(prebuilt_path):
+    print "oem.img already exists in %s, no need to rebuild..." % (prefix,)
+    return
+
+  block_list = common.MakeTempFile(prefix="oem-blocklist-", suffix=".map")
+  imgname = BuildOem(OPTIONS.input_tmp, OPTIONS.info_dict,
+                     block_list=block_list)
+  with open(imgname, "rb") as f:
+    common.ZipWriteStr(output_zip, prefix + "oem.img", f.read())
+  with open(block_list, "rb") as f:
+    common.ZipWriteStr(output_zip, prefix + "oem.map", f.read())
+
+
+def BuildOem(input_dir, info_dict, block_list=None):
+  """Build the (sparse) oem image and return the name of a temp
+  file containing it."""
+  return CreateImage(input_dir, info_dict, "oem", block_list=block_list)
+
 
 def CreateImage(input_dir, info_dict, what, block_list=None):
   print "creating " + what + ".img..."
@@ -191,6 +214,53 @@ def AddUserdata(output_zip, prefix="IMAGES/"):
   os.rmdir(temp_dir)
 
 
+def AddUserdataExtra(output_zip, prefix="IMAGES/"):
+  """Create extra userdata image and store it in output_zip."""
+
+  image_props = build_image.ImagePropFromGlobalDict(OPTIONS.info_dict,
+                                                  "data_extra")
+
+  # The build system has to explicitly request extra userdata.
+  if "fs_type" not in image_props:
+    return
+
+  extra_name = image_props.get("partition_name", "extra")
+
+  prebuilt_path = os.path.join(OPTIONS.input_tmp, prefix, "userdata_%s.img" % extra_name)
+  if os.path.exists(prebuilt_path):
+    print "userdata_%s.img already exists in %s, no need to rebuild..." % (extra_name, prefix,)
+    return
+
+  # We only allow yaffs to have a 0/missing partition_size.
+  # Extfs, f2fs must have a size. Skip userdata_extra.img if no size.
+  if (not image_props.get("fs_type", "").startswith("yaffs") and
+      not image_props.get("partition_size")):
+    return
+
+  print "creating userdata_%s.img..." % extra_name
+
+  # The name of the directory it is making an image out of matters to
+  # mkyaffs2image.  So we create a temp dir, and within it we create an
+  # empty dir named "data", and build the image from that.
+  temp_dir = tempfile.mkdtemp()
+  user_dir = os.path.join(temp_dir, "data")
+  os.mkdir(user_dir)
+  img = tempfile.NamedTemporaryFile()
+
+  fstab = OPTIONS.info_dict["fstab"]
+  if fstab:
+    image_props["fs_type" ] = fstab["/data"].fs_type
+  succ = build_image.BuildImage(user_dir, image_props, img.name)
+  assert succ, "build userdata_%s.img image failed" % extra_name
+
+  # Disable size check since this fetches original data partition size
+  #common.CheckSize(img.name, "userdata_extra.img", OPTIONS.info_dict)
+  output_zip.write(img.name, prefix + "userdata_%s.img" % extra_name)
+  img.close()
+  os.rmdir(user_dir)
+  os.rmdir(temp_dir)
+
+
 def AddCache(output_zip, prefix="IMAGES/"):
   """Create an empty cache image and store it in output_zip."""
 
@@ -243,6 +313,12 @@ def AddImagesToTargetFiles(filename):
   except KeyError:
     has_vendor = False
 
+  try:
+    input_zip.getinfo("OEM/")
+    has_oem = True
+  except KeyError:
+    has_oem = False
+
   OPTIONS.info_dict = common.LoadInfoDict(input_zip)
   if "selinux_fc" in OPTIONS.info_dict:
     OPTIONS.info_dict["selinux_fc"] = os.path.join(
@@ -290,8 +366,14 @@ def AddImagesToTargetFiles(filename):
     AddVendor(output_zip)
   banner("userdata")
   AddUserdata(output_zip)
+  banner("extrauserdata")
+  AddUserdataExtra(output_zip)
   banner("cache")
   AddCache(output_zip)
+  if has_oem:
+    banner("oem")
+    AddOem(output_zip)
+
 
   output_zip.close()
 
